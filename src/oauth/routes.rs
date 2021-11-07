@@ -18,16 +18,20 @@ impl OauthController {
             settings.client_id,
             settings.redirect_uri,
             settings.response_type,
-            settings.scopes.iter().map(|s|format!("{}", s)).collect::<Vec<String>>().join(",")
+            settings.scopes.iter().map(|s|format!("{}", s)).collect::<Vec<String>>().join("%20")
         )
     }
 }
+
+
 
 pub async fn authenticate(req: HttpRequest) -> HttpResponse {
     match req.match_info().get("code") {
         Some(code) => {
             match token_call(GrantType::AuthorizationCode(code.into())).await {
-                Ok(response) => HttpResponse::Ok().json(response),
+                Ok(response) => {
+                    HttpResponse::Ok().json(response)
+                },
                 Err(err) => HttpResponse::BadRequest().body(err),
             }
         }
@@ -37,7 +41,7 @@ pub async fn authenticate(req: HttpRequest) -> HttpResponse {
 
 pub async fn oauth_url() -> impl Responder {
     OauthController::create_url(OauthUrlSettings {
-        scopes: vec![OauthScope::Identify],
+        scopes: vec![OauthScope::Identify, OauthScope::Guilds],
         client_id: env::var("DISCORD_CLIENT_ID").unwrap().parse::<u64>().unwrap(),
         redirect_uri: format!("{}/authenticate", env::var("CLIENT_URI").unwrap()),
         response_type: ResponseType::Code,

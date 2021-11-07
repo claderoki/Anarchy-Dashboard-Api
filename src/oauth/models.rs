@@ -7,6 +7,7 @@ use strum_macros::Display;
 #[serde(rename_all = "snake_case")]
 pub enum OauthScope {
     Identify,
+    Guilds,
 }
 
 #[derive(Display, Serialize, Deserialize)]
@@ -37,5 +38,7 @@ pub struct AccessTokenResponse {
     pub token_type: String,
     pub expires_in: i64,
     pub refresh_token: String,
-    pub scope: OauthScope,
+    pub scope: String,
+    // #[serde(with = "serde_with::rust::StringWithSeparator::<SpaceSeparator>")]
+    // pub scope: Vec<OauthScope>,
 }
