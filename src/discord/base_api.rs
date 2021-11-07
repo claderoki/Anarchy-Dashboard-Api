@@ -1,62 +1,41 @@
+use async_trait::async_trait;
+use reqwest;
+use reqwest::header::HeaderMap;
 use serde::de::DeserializeOwned;
-use serenity::async_trait;
-extern crate reqwest;
 
-use std::collections::HashMap;
-
-pub trait Api {
-    fn get_base_uri() -> String;
+pub enum HttpMethod {
+    Get,
 }
 
-pub enum ApiCallMethod {
-    Get,
-    _Post,
+pub trait Endpoint<D: DeserializeOwned> {
+    const METHOD: HttpMethod = HttpMethod::Get;
+
+    fn get_endpoint(&self) -> &str;
 }
 
 #[async_trait]
-pub trait ApiCall<D: DeserializeOwned> {
-    fn get_uri(&self) -> String;
+pub trait Callable {
+    const BASE_URI: &'static str;
 
-    async fn call(&self) -> Result<D, String> {
-        let uri = {
-            if let Some(params) = self.get_query_params() {
-                if params.is_empty() {
-                    self.get_uri()
-                } else {
-                    let addition = {
-                        let mut messages: Vec<String> = Vec::new();
-                        for (key, value) in params.iter() {
-                            messages.push(format!("{}={}", key, value));
-                        }
-                        messages.join("&")
-                    };
-                    format!("{}?{}", self.get_uri(), addition)
-                }
-            } else {
-                self.get_uri()
-            }
-        };
-
-        match Self::get_method() {
-            ApiCallMethod::Get => {
-                let response = reqwest::get(uri.as_str())
-                    .await
-                    .map_err(|e| format!("{}", e))?;
-                response.json::<D>().await.map_err(|e| format!("{}", e))
-            }
-            _ => Err("Not implemented yet.".into()),
+    async fn call<T: Endpoint<D> + Send, D: DeserializeOwned>(
+        &self,
+        endpoint: T,
+    ) -> Result<D, String> {
+        let uri = format!("{}/{}", Self::BASE_URI, endpoint.get_endpoint());
+        let client = reqwest::Client::new();
+        let response = match T::METHOD {
+            HttpMethod::Get => client.get(&uri),
         }
+        .headers(self.get_default_headers().unwrap_or(HeaderMap::new()))
+        .send()
+        .await
+        .map_err(|e| format!("{}", e))?;
+
+        let json = response.json::<D>().await.map_err(|e| format!("{}", e))?;
+        Ok(json)
     }
 
-    fn get_method() -> ApiCallMethod {
-        ApiCallMethod::Get
-    }
-
-    fn get_query_params(&self) -> Option<HashMap<String, String>> {
+    fn get_default_headers(&self) -> Option<HeaderMap> {
         None
-    }
-
-    fn get_headers() {
-        
     }
 }

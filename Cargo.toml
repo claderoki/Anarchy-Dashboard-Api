@@ -12,3 +12,4 @@ strum        = "0.22"
 strum_macros = "0.22"
 reqwest      = { version = "0.10", features = ["json"] }
 dotenv       = "0.15"
+async-trait  = "0.1.50"

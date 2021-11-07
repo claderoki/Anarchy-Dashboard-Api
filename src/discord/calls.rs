@@ -1,34 +1,30 @@
-extern crate reqwest;
+use crate::discord::discord_base::AccessToken;
 
-use std::collections::HashMap;
+use super::base_api::Endpoint;
+use super::discord_base::DiscordCall;
+use super::base_api::Callable;
 
-use super::base_api::ApiCall;
-use super::base_api::Api;
+#[derive(serde::Deserialize, Debug)]
+pub struct MeResponse {
+    id: String,
+}
 
-pub struct GetMe {
+struct GetMe;
+impl Endpoint<MeResponse> for GetMe {
+    fn get_endpoint(&self) -> &str {
+        "/users/@me"
+    }
 }
 
 impl GetMe {
     pub fn new() -> Self {
-        Self { }
+        Self {}
     }
 }
 
-#[derive(serde::Deserialize, Debug)]
-pub struct MeResponse {
-
-}
-
-impl ApiCall<MeResponse> for GetMe {
-    fn get_uri(&self) -> String {
-        format!("{}/users/@me", DiscordApi::get_base_uri())
-    }
-
-}
-
-pub struct DiscordApi;
-impl Api for DiscordApi {
-    fn get_base_uri() -> String {
-        "https://discord.com/api".into()
-    }
+pub async fn test_get_me_call(access_token: &str) {
+    let call = DiscordCall::new(AccessToken::bearer(access_token));
+    let endpoint = GetMe::new();
+    let result = call.call(endpoint).await;
+    println!("{:?}", result);
 }

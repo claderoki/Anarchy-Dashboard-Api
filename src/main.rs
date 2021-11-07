@@ -7,6 +7,7 @@ use actix_web::http;
 use actix_web::HttpServer;
 mod polls;
 mod oauth;
+mod discord;
 use polls::routes::save_poll;
 use oauth::routes::oauth_url;
 use oauth::routes::authenticate;
