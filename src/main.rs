@@ -1,33 +1,13 @@
 use actix_cors::Cors;
-use actix_web::{web, App, http, HttpServer, Responder};
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Debug)]
-struct PollOption {
-    positive: bool,
-    value: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Poll {
-    id: i32,
-    question: String,
-    channel_id: u64,
-    result_channel_id: Option<u64>,
-    pin: bool,
-    mention_role: bool,
-    delete_after_results: bool,
-    custom: bool,
-    role_id_needed: Option<u64>,
-    vote_percentage_needed_to_pass: i16,
-    max_votes_per_user: i16,
-    options: Vec<PollOption>,
-}
-
-async fn save_poll(poll: web::Json<Poll>) -> impl Responder {
-    println!("{:?}", poll);
-    format!("OK")
-}
+use actix_web::web;
+use actix_web::App;
+use actix_web::http;
+use actix_web::HttpServer;
+mod polls;
+mod oauth;
+use polls::routes::save_poll;
+use oauth::routes::oauth_url;
+use oauth::routes::authenticate;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -39,6 +19,8 @@ async fn main() -> std::io::Result<()> {
                 .allowed_header(http::header::CONTENT_TYPE)
             )
             .route("/api/polls/save", web::post().to(save_poll))
+            .route("/api/oauth/url", web::get().to(oauth_url))
+            .route("/api/oauth/authenticate/{code}", web::get().to(authenticate))
     })
     .bind("127.0.0.1:8080")?
     .run()
