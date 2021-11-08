@@ -53,11 +53,15 @@ async fn get_allowed_guilds(access_token: &str) -> Result<Vec<u64>, String> {
         Some(guild_ids) => Ok(guild_ids),
         None => {
             let guilds = get_shared_guilds(access_token).await?;
-            let guild_ids = guilds
-                .iter()
-                .map(|i| i.id.parse::<u64>().unwrap())
-                .collect::<Vec<u64>>();
-            GuildsCache::set(UserId { 0: user_id }, guild_ids);
+
+            GuildsCache::set(
+                UserId { 0: user_id },
+                guilds
+                    .iter()
+                    .map(|i| i.id.parse::<u64>().unwrap())
+                    .collect::<Vec<u64>>(),
+            );
+
             Ok(guilds
                 .iter()
                 .map(|i| i.id.parse::<u64>().unwrap())
@@ -66,7 +70,7 @@ async fn get_allowed_guilds(access_token: &str) -> Result<Vec<u64>, String> {
     }
 }
 
-async fn get_allowed_channels(guild_id: u64) -> Vec<Channel> {
+async fn get_allowed_channels(_guild_id: u64) -> Vec<Channel> {
     vec![
         Channel {
             id: 906898585302499369,
@@ -79,7 +83,7 @@ async fn get_allowed_channels(guild_id: u64) -> Vec<Channel> {
     ]
 }
 
-async fn get_allowed_roles(guild_id: u64) -> Vec<Role> {
+async fn _get_allowed_roles(_guild_id: u64) -> Vec<Role> {
     vec![
         Role {
             id: 907341985365512323,
