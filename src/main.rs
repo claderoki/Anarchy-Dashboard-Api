@@ -13,6 +13,8 @@ use oauth::routes::authenticate;
 use oauth::routes::oauth_url;
 use polls::routes::save_poll;
 
+use crate::polls::routes::get_poll_channels;
+
 pub fn panic_on_missing_env() {
     env::var("DISCORD_CLIENT_ID").expect("Expected DISCORD_CLIENT_ID in the environment");
     env::var("DISCORD_CLIENT_SECRET").expect("Expected DISCORD_CLIENT_SECRET in the environment");
@@ -49,6 +51,10 @@ async fn main() -> std::io::Result<()> {
             .route(
                 "/api/discord/get_mutual_guilds",
                 web::get().to(get_mutual_guilds),
+            )
+            .route(
+                "/api/polls/{guild_id}/allowed_channels",
+                web::get().to(get_poll_channels),
             )
     })
     .bind("127.0.0.1:8080")?

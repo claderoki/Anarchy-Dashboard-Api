@@ -37,10 +37,10 @@ impl OauthController {
 async fn store_oauth(response: &AccessTokenResponse) {
     let mut hasher = DefaultHasher::new();
     response.access_token.hash(&mut hasher);
-    let key = AccessTokenHash {
-        hash: hasher.finish().to_string(),
-        expires_in: Some(response.expires_in.try_into().unwrap()),
-    };
+    let key = AccessTokenHash::new_with_expires_in(
+        &hasher.finish().to_string(),
+        response.expires_in.try_into().unwrap(),
+    );
 
     let call = DiscordCall {
         access_token: AccessToken::bearer(&response.access_token),

@@ -23,9 +23,35 @@ pub fn parse_access_token(req: &HttpRequest) -> Option<String> {
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
-struct Guild {
-    id: String,
-    name: String,
+pub struct Guild {
+    pub id: String,
+    pub name: String,
+}
+
+pub async fn get_shared_guilds(access_token: &str) -> Result<Vec<Guild>, String> {
+    let user_call = DiscordCall::new(AccessToken::bearer(&access_token));
+    let bot_call = DiscordCall::new(AccessToken::bot(&env::var("DISCORD_CLIENT_TOKEN").unwrap()));
+
+    match user_call.call(GetGuilds {}).await {
+        Ok(user_guilds) => match bot_call.call(GetGuilds {}).await {
+            Ok(bot_guilds) => {
+                let mut guilds: Vec<Guild> = Vec::new();
+                for guild in user_guilds.guilds.iter() {
+                    for other_guild in bot_guilds.guilds.iter() {
+                        if guild.id == other_guild.id {
+                            guilds.push(Guild {
+                                id: guild.id.clone(),
+                                name: guild.name.clone(),
+                            });
+                        }
+                    }
+                }
+                Ok(guilds)
+            }
+            Err(e) => Err(e),
+        },
+        Err(e) => Err(e),
+    }
 }
 
 pub async fn get_mutual_guilds(req: HttpRequest) -> HttpResponse {
@@ -35,32 +61,7 @@ pub async fn get_mutual_guilds(req: HttpRequest) -> HttpResponse {
         return HttpResponse::Unauthorized().finish();
     }
 
-    let user_call = DiscordCall::new(AccessToken::bearer(&access_token.unwrap()));
-    let bot_call = DiscordCall::new(AccessToken::bot(&env::var("DISCORD_CLIENT_TOKEN").unwrap()));
-
-    let mutual_guilds_response: Result<Vec<Guild>, String> = {
-        match user_call.call(GetGuilds {}).await {
-            Ok(user_guilds) => match bot_call.call(GetGuilds {}).await {
-                Ok(bot_guilds) => {
-                    let mut guilds: Vec<Guild> = Vec::new();
-                    for guild in user_guilds.guilds.iter() {
-                        for other_guild in bot_guilds.guilds.iter() {
-                            if guild.id == other_guild.id {
-                                guilds.push(Guild {
-                                    id: guild.id.clone(),
-                                    name: guild.name.clone(),
-                                });
-                            }
-                        }
-                    }
-                    Ok(guilds)
-                }
-                Err(e) => Err(e),
-            },
-            Err(e) => Err(e),
-        }
-    };
-    match mutual_guilds_response {
+    match get_shared_guilds(&access_token.as_ref().unwrap()).await {
         Ok(guilds) => HttpResponse::Ok().json(guilds),
         Err(_) => HttpResponse::BadRequest().finish(),
     }
