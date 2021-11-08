@@ -1,13 +1,24 @@
+use std::collections::hash_map::DefaultHasher;
 use std::env;
+use std::hash::Hash;
+use std::hash::Hasher;
 
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 use actix_web::Responder;
 
+use crate::discord::base_api::Callable;
+use crate::discord::caching::AccessTokenHash;
+use crate::discord::caching::Cache;
+use crate::discord::caching::UserIdCache;
+use crate::discord::calls::GetMe;
+use crate::discord::discord_base::AccessToken;
+use crate::discord::discord_base::DiscordCall;
 use crate::oauth::models::OauthScope;
 use crate::oauth::models::ResponseType;
 
 use super::calls::token_call;
+use super::models::AccessTokenResponse;
 use super::models::GrantType;
 use super::models::OauthUrlSettings;
 
@@ -23,10 +34,33 @@ impl OauthController {
     }
 }
 
+async fn store_oauth(response: &AccessTokenResponse) {
+    let mut hasher = DefaultHasher::new();
+    response.access_token.hash(&mut hasher);
+    let key = AccessTokenHash {
+        hash: hasher.finish().to_string(),
+        expires_in: Some(response.expires_in.try_into().unwrap()),
+    };
+
+    let call = DiscordCall {
+        access_token: AccessToken::bearer(&response.access_token),
+    };
+    let result = call.call(GetMe {}).await;
+
+    if let Ok(me) = result {
+        if let Ok(user_id) = me.id.parse::<u64>() {
+            UserIdCache::set(key, user_id);
+        }
+    }
+}
+
 pub async fn authenticate(req: HttpRequest) -> HttpResponse {
     match req.match_info().get("code") {
         Some(code) => match token_call(GrantType::AuthorizationCode(code.into())).await {
-            Ok(response) => HttpResponse::Ok().json(response),
+            Ok(response) => {
+                store_oauth(&response).await;
+                HttpResponse::Ok().json(response)
+            }
             Err(err) => HttpResponse::BadRequest().body(err),
         },
         None => HttpResponse::BadRequest().finish(),

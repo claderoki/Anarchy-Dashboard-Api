@@ -1,12 +1,8 @@
-use crate::discord::discord_base::AccessToken;
-
-use super::base_api::Callable;
 use super::base_api::Endpoint;
-use super::discord_base::DiscordCall;
 
 #[derive(serde::Deserialize, Debug)]
 pub struct MeResponse {
-    id: String,
+    pub id: String,
 }
 
 pub struct GetMe;
@@ -55,7 +51,7 @@ pub enum ChannelKind {
 pub struct ChannelResponse {
     pub id: String,
     pub name: String,
-    #[serde(rename="type")]
+    #[serde(rename = "type")]
     pub kind: ChannelKind,
 }
 
