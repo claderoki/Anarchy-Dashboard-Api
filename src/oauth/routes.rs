@@ -4,7 +4,6 @@ use actix_web::HttpResponse;
 use actix_web::HttpRequest;
 use actix_web::Responder;
 
-use crate::discord::calls::test_get_me_call;
 use crate::oauth::models::OauthScope;
 use crate::oauth::models::ResponseType;
 
@@ -29,7 +28,6 @@ pub async fn authenticate(req: HttpRequest) -> HttpResponse {
         Some(code) => {
             match token_call(GrantType::AuthorizationCode(code.into())).await {
                 Ok(response) => {
-                    test_get_me_call(&response.access_token).await;
                     HttpResponse::Ok().json(response)
                 },
                 Err(err) => HttpResponse::BadRequest().body(err),

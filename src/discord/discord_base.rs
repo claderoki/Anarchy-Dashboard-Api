@@ -4,6 +4,7 @@ use reqwest::header::HeaderMap;
 use reqwest::header::AUTHORIZATION;
 use strum_macros::Display;
 use super::base_api::Callable;
+
 pub struct DiscordCall {
     pub access_token: AccessToken,
 }
@@ -13,6 +14,7 @@ pub enum AccessTokenKind {
     Bot,
     Bearer
 }
+
 pub struct AccessToken {
     pub kind: AccessTokenKind,
     pub value: String,

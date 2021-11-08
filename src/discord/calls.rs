@@ -22,6 +22,23 @@ impl GetMe {
     }
 }
 
+#[derive(serde::Deserialize, Debug)]
+pub struct GuildResponse {
+    id: String,
+}
+
+#[derive(serde::Deserialize, Debug)]
+pub struct GuildsResponse {
+    guilds: Vec<GuildResponse>,
+}
+
+struct GetGuilds;
+impl Endpoint<MeResponse> for GetGuilds {
+    fn get_endpoint(&self) -> &str {
+        "/users/@me/guilds"
+    }
+}
+
 pub async fn test_get_me_call(access_token: &str) {
     let call = DiscordCall::new(AccessToken::bearer(access_token));
     let endpoint = GetMe::new();
