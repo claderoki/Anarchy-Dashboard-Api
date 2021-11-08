@@ -1,8 +1,8 @@
 use crate::discord::discord_base::AccessToken;
 
+use super::base_api::Callable;
 use super::base_api::Endpoint;
 use super::discord_base::DiscordCall;
-use super::base_api::Callable;
 
 #[derive(serde::Deserialize, Debug)]
 pub struct MeResponse {

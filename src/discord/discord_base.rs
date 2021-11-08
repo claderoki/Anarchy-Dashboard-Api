@@ -1,9 +1,9 @@
+use super::base_api::Callable;
 use actix_web::http::HeaderValue;
 use reqwest;
 use reqwest::header::HeaderMap;
 use reqwest::header::AUTHORIZATION;
 use strum_macros::Display;
-use super::base_api::Callable;
 
 pub struct DiscordCall {
     pub access_token: AccessToken,
@@ -12,7 +12,7 @@ pub struct DiscordCall {
 #[derive(Display, Debug)]
 pub enum AccessTokenKind {
     Bot,
-    Bearer
+    Bearer,
 }
 
 pub struct AccessToken {
@@ -24,23 +24,21 @@ impl AccessToken {
     pub fn bearer(access_token: &str) -> Self {
         Self {
             value: access_token.into(),
-            kind: AccessTokenKind::Bearer
+            kind: AccessTokenKind::Bearer,
         }
     }
 
     pub fn bot(access_token: &str) -> Self {
         Self {
             value: access_token.into(),
-            kind: AccessTokenKind::Bot
+            kind: AccessTokenKind::Bot,
         }
     }
 }
 
 impl DiscordCall {
     pub fn new(access_token: AccessToken) -> Self {
-        Self {
-            access_token,
-        }
+        Self { access_token }
     }
 }
 
@@ -49,8 +47,11 @@ impl Callable for DiscordCall {
 
     fn get_default_headers(&self) -> Option<HeaderMap> {
         let mut params = HeaderMap::new();
-        if let Ok(value) = HeaderValue::from_str(&format!("{} {}", self.access_token.kind.to_string(), self.access_token.value)) {
-            println!("{:?}", value);
+        if let Ok(value) = HeaderValue::from_str(&format!(
+            "{} {}",
+            self.access_token.kind.to_string(),
+            self.access_token.value
+        )) {
             params.insert(AUTHORIZATION, value);
         }
         Some(params)
