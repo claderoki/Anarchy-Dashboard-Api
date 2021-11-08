@@ -10,7 +10,7 @@ pub enum HttpMethod {
 pub trait Endpoint<D: DeserializeOwned> {
     const METHOD: HttpMethod = HttpMethod::Get;
 
-    fn get_endpoint(&self) -> &str;
+    fn get_endpoint(&self) -> String;
 }
 
 #[async_trait]
@@ -30,6 +30,9 @@ pub trait Callable {
         .send()
         .await
         .map_err(|e| format!("{}", e))?;
+
+        // println!("{:?}", response.text().await);
+        // Err("".into())
 
         let json = response.json::<D>().await.map_err(|e| format!("{}", e))?;
         Ok(json)
