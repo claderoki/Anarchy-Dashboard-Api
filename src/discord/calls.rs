@@ -9,7 +9,7 @@ pub struct MeResponse {
     id: String,
 }
 
-struct GetMe;
+pub struct GetMe;
 impl Endpoint<MeResponse> for GetMe {
     fn get_endpoint(&self) -> &str {
         "/users/@me"
@@ -32,16 +32,16 @@ pub struct GuildsResponse {
     guilds: Vec<GuildResponse>,
 }
 
-struct GetGuilds;
+pub struct GetGuilds;
 impl Endpoint<MeResponse> for GetGuilds {
     fn get_endpoint(&self) -> &str {
         "/users/@me/guilds"
     }
 }
 
-pub async fn test_get_me_call(access_token: &str) {
-    let call = DiscordCall::new(AccessToken::bearer(access_token));
-    let endpoint = GetMe::new();
-    let result = call.call(endpoint).await;
-    println!("{:?}", result);
-}
+// pub async fn test_get_me_call(access_token: &str) {
+//     let call = DiscordCall::new(AccessToken::bearer(access_token));
+//     let endpoint = GetMe::new();
+//     let result = call.call(endpoint).await;
+//     println!("{:?}", result);
+// }
