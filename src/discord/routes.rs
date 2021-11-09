@@ -29,8 +29,8 @@ pub struct Guild {
 }
 
 pub async fn get_shared_guilds(access_token: &str) -> Result<Vec<Guild>, String> {
-    let user_call = DiscordCall::new(AccessToken::bearer(&access_token));
-    let bot_call = DiscordCall::new(AccessToken::bot(&env::var("DISCORD_CLIENT_TOKEN").unwrap()));
+    let user_call = DiscordCall::new(AccessToken::Bearer(access_token.into()));
+    let bot_call = DiscordCall::new(AccessToken::Bot(env::var("DISCORD_CLIENT_TOKEN").unwrap()));
 
     match user_call.call(GetGuilds {}).await {
         Ok(user_guilds) => match bot_call.call(GetGuilds {}).await {

@@ -30,7 +30,7 @@ async fn get_user_id(access_token: &str) -> Result<u64, String> {
         Some(user_id) => Ok(user_id),
         None => {
             let call = DiscordCall {
-                access_token: AccessToken::bearer(&access_token),
+                access_token: AccessToken::Bearer(access_token.into()),
             };
             let result = call.call(GetMe {}).await;
             if let Ok(me) = result {

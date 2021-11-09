@@ -43,7 +43,7 @@ async fn store_oauth(response: &AccessTokenResponse) {
     );
 
     let call = DiscordCall {
-        access_token: AccessToken::bearer(&response.access_token),
+        access_token: AccessToken::Bearer(response.access_token.clone()),
     };
     let result = call.call(GetMe {}).await;
 
