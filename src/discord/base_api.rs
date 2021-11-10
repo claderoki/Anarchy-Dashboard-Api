@@ -41,4 +41,5 @@ pub trait Callable {
     fn get_default_headers(&self) -> Option<HeaderMap> {
         None
     }
+
 }

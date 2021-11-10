@@ -8,12 +8,12 @@ use actix_web::HttpResponse;
 use actix_web::Responder;
 
 use crate::discord::base_api::Callable;
-use crate::discord::caching::AccessTokenHash;
-use crate::discord::caching::Cache;
-use crate::discord::caching::UserIdCache;
 use crate::discord::calls::GetMe;
 use crate::discord::discord_base::AccessToken;
 use crate::discord::discord_base::DiscordCall;
+use crate::helpers::caching::base::Cache;
+use crate::helpers::caching::discord::AccessTokenHash;
+use crate::helpers::caching::discord::UserIdCache;
 use crate::oauth::models::OauthScope;
 use crate::oauth::models::ResponseType;
 

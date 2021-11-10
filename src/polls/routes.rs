@@ -3,16 +3,16 @@ use std::hash::Hash;
 use std::hash::Hasher;
 
 use crate::discord::base_api::Callable;
-use crate::discord::caching::AccessTokenHash;
-use crate::discord::caching::Cache;
-use crate::discord::caching::GuildsCache;
-use crate::discord::caching::UserId;
-use crate::discord::caching::UserIdCache;
 use crate::discord::calls::GetMe;
 use crate::discord::discord_base::AccessToken;
 use crate::discord::discord_base::DiscordCall;
 use crate::discord::routes::get_shared_guilds;
 use crate::discord::routes::parse_access_token;
+use crate::helpers::caching::base::Cache;
+use crate::helpers::caching::discord::AccessTokenHash;
+use crate::helpers::caching::discord::GuildsCache;
+use crate::helpers::caching::discord::UserId;
+use crate::helpers::caching::discord::UserIdCache;
 
 use super::models::Poll;
 use actix_web::web;

@@ -6,6 +6,7 @@ use actix_web::web;
 use actix_web::App;
 use actix_web::HttpServer;
 mod discord;
+mod helpers;
 mod oauth;
 mod polls;
 use discord::routes::get_mutual_guilds;
