@@ -143,7 +143,7 @@ async fn get_poll_channels_result(req: &HttpRequest) -> Result<Vec<Channel>, Str
     let validator = Validator {};
     match validator.validate(&req).await {
         Ok(info) => Ok(get_allowed_channels(info.guild_id).await),
-        Err(_) => Err("Validate failed.".into()),
+        Err(err) => Err(format!("Validate failed: {}", err)),
     }
 }
 
