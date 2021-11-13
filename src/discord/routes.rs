@@ -31,27 +31,21 @@ pub struct Guild {
 pub async fn get_shared_guilds(access_token: &str) -> Result<Vec<Guild>, String> {
     let user_call = DiscordCall::new(AccessToken::Bearer(access_token.into()));
     let bot_call = DiscordCall::new(AccessToken::Bot(env::var("DISCORD_CLIENT_TOKEN").unwrap()));
+    let user_guilds = user_call.call(GetGuilds {}).await?;
+    let bot_guilds = bot_call.call(GetGuilds {}).await?;
 
-    match user_call.call(GetGuilds {}).await {
-        Ok(user_guilds) => match bot_call.call(GetGuilds {}).await {
-            Ok(bot_guilds) => {
-                let mut guilds: Vec<Guild> = Vec::new();
-                for guild in user_guilds.guilds.iter() {
-                    for other_guild in bot_guilds.guilds.iter() {
-                        if guild.id == other_guild.id {
-                            guilds.push(Guild {
-                                id: guild.id.clone(),
-                                name: guild.name.clone(),
-                            });
-                        }
-                    }
-                }
-                Ok(guilds)
+    let mut guilds: Vec<Guild> = Vec::new();
+    for guild in user_guilds.guilds.iter() {
+        for other_guild in bot_guilds.guilds.iter() {
+            if guild.id == other_guild.id {
+                guilds.push(Guild {
+                    id: guild.id.clone(),
+                    name: guild.name.clone(),
+                });
             }
-            Err(e) => Err(e),
-        },
-        Err(e) => Err(e),
+        }
     }
+    Ok(guilds)
 }
 
 pub async fn get_mutual_guilds(req: HttpRequest) -> HttpResponse {

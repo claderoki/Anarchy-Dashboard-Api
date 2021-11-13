@@ -16,9 +16,25 @@ pub trait CacheKey {
     fn get_key(&self) -> String;
 }
 
-pub trait Cache<D: CacheKey, T> {
-    fn get(key: D) -> Option<T>;
-    fn set(key: D, value: T) -> bool;
+pub trait Cache<D: CacheKey, T: ToRedisArgs + FromRedisValue> {
+    fn get(key: D) -> Option<T> {
+        let mut connection = get_connection_redis().ok()?;
+        let value: T = connection.get(key.get_key()).ok()?;
+        Some(value)
+    }
+
+    fn set(key: D, value: T) -> bool {
+        if let Ok(mut connection) = get_connection_redis() {
+            let full_key = key.get_key();
+            let result: Result<(), _> = connection.set(&full_key, value);
+            if let Some(expire) = Self::get_expire(&key) {
+                let _: Result<(), _> = connection.expire(&full_key, expire);
+            }
+            result.is_ok()
+        } else {
+            false
+        }
+    }
 
     fn get_expire(_: &D) -> Option<usize> {
         None
