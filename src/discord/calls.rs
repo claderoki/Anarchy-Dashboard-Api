@@ -46,6 +46,23 @@ pub enum ChannelKind {
     GuildPrivateThread = 12,
     GuildStageVoice = 13,
 }
+impl ChannelKind {
+    pub fn clone(&self) -> Self {
+        match self {
+            ChannelKind::GuildText => ChannelKind::GuildText,
+            ChannelKind::Dm => ChannelKind::Dm,
+            ChannelKind::GuildVoice => ChannelKind::GuildVoice,
+            ChannelKind::GroupDm => ChannelKind::GroupDm,
+            ChannelKind::GuildCategory => ChannelKind::GuildCategory,
+            ChannelKind::GuildNews => ChannelKind::GuildNews,
+            ChannelKind::GuildStore => ChannelKind::GuildStore,
+            ChannelKind::GuildNewsThread => ChannelKind::GuildNewsThread,
+            ChannelKind::GuildPublicThread => ChannelKind::GuildPublicThread,
+            ChannelKind::GuildPrivateThread => ChannelKind::GuildPrivateThread,
+            ChannelKind::GuildStageVoice => ChannelKind::GuildStageVoice,
+        }
+    }
+}
 
 #[derive(serde::Deserialize, Debug)]
 pub struct ChannelResponse {
@@ -80,7 +97,7 @@ pub struct RoleResponse {
 #[derive(serde::Deserialize, Debug)]
 #[serde(transparent)]
 pub struct RolesResponse {
-    pub roles: Vec<ChannelResponse>,
+    pub roles: Vec<RoleResponse>,
 }
 
 pub struct GetRoles {
@@ -90,5 +107,33 @@ pub struct GetRoles {
 impl Endpoint<RolesResponse> for GetRoles {
     fn get_endpoint(&self) -> String {
         format!("/guilds/{}/roles", self.guild_id)
+    }
+}
+
+#[derive(serde::Deserialize, Debug)]
+pub struct UserResponse {
+    pub id: String,
+    pub username: String,
+    pub discriminator: String,
+}
+
+#[derive(serde::Deserialize, Debug)]
+pub struct MemberResponse {
+    pub user: UserResponse,
+}
+
+#[derive(serde::Deserialize, Debug)]
+#[serde(transparent)]
+pub struct MembersResponse {
+    pub members: Vec<MemberResponse>,
+}
+
+pub struct GetMembers {
+    pub guild_id: u64,
+}
+
+impl Endpoint<MembersResponse> for GetMembers {
+    fn get_endpoint(&self) -> String {
+        format!("/guilds/{}/members", self.guild_id)
     }
 }

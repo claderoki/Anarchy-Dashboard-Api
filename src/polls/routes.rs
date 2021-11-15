@@ -1,18 +1,5 @@
-use std::collections::hash_map::DefaultHasher;
-use std::hash::Hash;
-use std::hash::Hasher;
-
-use crate::discord::base_api::Callable;
-use crate::discord::calls::GetMe;
-use crate::discord::discord_base::AccessToken;
-use crate::discord::discord_base::DiscordCall;
-use crate::discord::routes::get_shared_guilds;
-use crate::discord::routes::parse_access_token;
-use crate::helpers::caching::base::Cache;
-use crate::helpers::caching::discord::AccessTokenHash;
-use crate::helpers::caching::discord::GuildsCache;
-use crate::helpers::caching::discord::UserId;
-use crate::helpers::caching::discord::UserIdCache;
+use crate::discord::calls::ChannelKind;
+use crate::helpers::validator::Validator;
 
 use super::models::Poll;
 use actix_web::web;
@@ -20,65 +7,17 @@ use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 use actix_web::Responder;
 
-async fn get_user_id(access_token: &str) -> Result<u64, String> {
-    let mut hasher = DefaultHasher::new();
-    access_token.hash(&mut hasher);
-    let hash = hasher.finish().to_string();
-    let key = AccessTokenHash::new(&hash);
-
-    match UserIdCache::get(key) {
-        Some(user_id) => Ok(user_id),
-        None => {
-            let call = DiscordCall {
-                access_token: AccessToken::Bearer(access_token.into()),
-            };
-            let result = call.call(GetMe {}).await;
-            if let Ok(me) = result {
-                if let Ok(user_id) = me.id.parse::<u64>() {
-                    UserIdCache::set(AccessTokenHash::new(&hash), user_id);
-                    return Ok(user_id);
-                }
-            }
-
-            Err("Couldn't find user id".into())
-        }
-    }
-}
-
-async fn get_allowed_guilds(access_token: &str) -> Result<Vec<u64>, String> {
-    let user_id = get_user_id(access_token).await?;
-
-    let key = UserId { 0: user_id };
-    match GuildsCache::get(key) {
-        Some(guild_ids) => Ok(guild_ids),
-        None => {
-            let guilds = get_shared_guilds(access_token).await?;
-
-            GuildsCache::set(
-                UserId { 0: user_id },
-                guilds
-                    .iter()
-                    .map(|i| i.id.parse::<u64>().unwrap())
-                    .collect::<Vec<u64>>(),
-            );
-
-            Ok(guilds
-                .iter()
-                .map(|i| i.id.parse::<u64>().unwrap())
-                .collect::<Vec<u64>>())
-        }
-    }
-}
-
 async fn get_allowed_channels(_guild_id: u64) -> Vec<Channel> {
     vec![
         Channel {
             id: 906898585302499369,
             name: "polls".into(),
+            kind: ChannelKind::GuildText,
         },
         Channel {
             id: 906898600162906162,
             name: "data".into(),
+            kind: ChannelKind::GuildText,
         },
     ]
 }
@@ -101,36 +40,18 @@ pub async fn save_poll(poll: web::Json<Poll>) -> impl Responder {
     format!("OK")
 }
 
-type ValidationResult = Result<ValidationInfo, String>;
-pub struct ValidationInfo {
-    pub guild_id: u64,
-}
-
-struct Validator;
-impl Validator {
-    pub async fn validate(&self, req: &HttpRequest) -> ValidationResult {
-        let access_token = parse_access_token(&req).ok_or("No access token found.")?;
-        let guild_id = req
-            .match_info()
-            .get("guild_id")
-            .ok_or("No guild id passed.")?
-            .parse::<u64>()
-            .map_err(|_| "Guild id invalid.")?;
-
-        if let Ok(guilds) = get_allowed_guilds(&access_token).await {
-            if guilds.contains(&guild_id) {
-                return Ok(ValidationInfo { guild_id: guild_id });
-            }
-        }
-
-        return Err("Guild not permitted.".into());
-    }
-}
-
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
 pub struct Channel {
     pub id: u64,
     pub name: String,
+    pub kind: ChannelKind,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug)]
+pub struct Member {
+    pub id: u64,
+    pub username: String,
+    pub discriminator: u16,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
@@ -140,8 +61,7 @@ pub struct Role {
 }
 
 async fn get_poll_channels_result(req: &HttpRequest) -> Result<Vec<Channel>, String> {
-    let validator = Validator {};
-    match validator.validate(&req).await {
+    match Validator::new().validate(&req).await {
         Ok(info) => Ok(get_allowed_channels(info.guild_id).await),
         Err(err) => Err(format!("Validate failed: {}", err)),
     }
@@ -157,4 +77,62 @@ pub async fn get_poll_channels(req: HttpRequest) -> HttpResponse {
             return HttpResponse::Unauthorized().finish();
         }
     }
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug)]
+pub enum ChangeKeyKind {
+    Member,
+    Channel,
+    String,
+    Role,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug)]
+pub enum ChangeValueKind {
+    Member,
+    String,
+    None,
+    Role,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug)]
+pub struct ChangeIdentifier {
+    pub value: String,
+    pub name: String,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug)]
+pub struct ChangeInfo {
+    pub identifier: ChangeIdentifier,
+    pub key_kind: ChangeKeyKind,
+    pub value_kind: ChangeValueKind,
+}
+
+pub async fn get_available_poll_changes(_req: HttpRequest) -> HttpResponse {
+    HttpResponse::Ok().json(vec![
+        ChangeInfo {
+            identifier: ChangeIdentifier {
+                value: "create_channel".into(),
+                name: "Create channel".into(),
+            },
+            key_kind: ChangeKeyKind::String,
+            value_kind: ChangeValueKind::None,
+        },
+        ChangeInfo {
+            identifier: ChangeIdentifier {
+                value: "delete_channel".into(),
+                name: "Delete channel".into(),
+            },
+            key_kind: ChangeKeyKind::Channel,
+            value_kind: ChangeValueKind::None,
+        },
+        ChangeInfo {
+            identifier: ChangeIdentifier {
+                value: "assign_role".into(),
+                name: "Assign role".into(),
+            },
+            key_kind: ChangeKeyKind::Role,
+            value_kind: ChangeValueKind::Member,
+        },
+    ])
 }

@@ -21,7 +21,7 @@ pub trait Callable {
         &self,
         endpoint: T,
     ) -> Result<D, String> {
-        let uri = format!("{}/{}", Self::BASE_URI, endpoint.get_endpoint());
+        let uri = format!("{}{}", Self::BASE_URI, endpoint.get_endpoint());
         let client = reqwest::Client::new();
         let response = match T::METHOD {
             HttpMethod::Get => client.get(&uri),
@@ -30,16 +30,24 @@ pub trait Callable {
         .send()
         .await
         .map_err(|e| format!("{}", e))?;
+        response
+            .error_for_status_ref()
+            .map_err(|e| format!("{}", e))?;
 
-        // println!("{:?}", response.text().await);
-        // Err("".into())
+        // println!("{}", uri);
+        // if uri.contains("/guilds") {
+        //     println!("abc {:?}", response.text().await);
+        //     return Err("".into());
+        // }
 
-        let json = response.json::<D>().await.map_err(|e| format!("{}", e))?;
+        let json = response
+            .json::<D>()
+            .await
+            .map_err(|e| format!("Error json decoding {}: `{}`", uri, e))?;
         Ok(json)
     }
 
     fn get_default_headers(&self) -> Option<HeaderMap> {
         None
     }
-
 }

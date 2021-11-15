@@ -1,6 +1,17 @@
 use std::env;
 
+use crate::helpers::caching::base::Cache;
+use crate::helpers::caching::discord::GuildId;
+use crate::helpers::caching::discord::GuildNameCache;
+
+use crate::helpers::repositories::discord::ChannelRepository;
+use crate::helpers::repositories::discord::MemberRepository;
+use crate::helpers::repositories::discord::RoleRepository;
+use crate::helpers::validator::get_allowed_guilds;
+use crate::helpers::validator::Validator;
+
 use super::base_api::Callable;
+use super::calls::ChannelKind;
 use super::calls::GetGuilds;
 use super::discord_base::AccessToken;
 use super::discord_base::DiscordCall;
@@ -55,8 +66,53 @@ pub async fn get_mutual_guilds(req: HttpRequest) -> HttpResponse {
         return HttpResponse::Unauthorized().finish();
     }
 
-    match get_shared_guilds(&access_token.as_ref().unwrap()).await {
-        Ok(guilds) => HttpResponse::Ok().json(guilds),
+    match get_allowed_guilds(&access_token.as_ref().unwrap()).await {
+        Ok(guild_ids) => {
+            let mut guilds: Vec<Guild> = Vec::new();
+
+            for guild_id in guild_ids.iter() {
+                if let Some(guild_name) = GuildNameCache::get(GuildId(*guild_id)) {
+                    guilds.push(Guild {
+                        id: guild_id.to_string(),
+                        name: guild_name,
+                    });
+                }
+            }
+
+            HttpResponse::Ok().json(guilds)
+        }
         Err(_) => HttpResponse::BadRequest().finish(),
+    }
+}
+
+pub async fn get_all_text_channels(req: HttpRequest) -> HttpResponse {
+    match Validator::new().validate(&req).await {
+        Ok(validation) => {
+            match ChannelRepository::get(validation.guild_id, ChannelKind::GuildText).await {
+                Ok(channels) => HttpResponse::Ok().json(channels),
+                Err(err) => HttpResponse::BadRequest().body(err),
+            }
+        }
+        Err(err) => HttpResponse::BadRequest().body(err),
+    }
+}
+
+pub async fn get_all_roles(req: HttpRequest) -> HttpResponse {
+    match Validator::new().validate(&req).await {
+        Ok(validation) => match RoleRepository::get(validation.guild_id).await {
+            Ok(roles) => HttpResponse::Ok().json(roles),
+            Err(err) => HttpResponse::BadRequest().body(err),
+        },
+        Err(err) => HttpResponse::BadRequest().body(err),
+    }
+}
+
+pub async fn get_all_members(req: HttpRequest) -> HttpResponse {
+    match Validator::new().validate(&req).await {
+        Ok(validation) => match MemberRepository::get(validation.guild_id).await {
+            Ok(members) => HttpResponse::Ok().json(members),
+            Err(err) => HttpResponse::BadRequest().body(err),
+        },
+        Err(err) => HttpResponse::BadRequest().body(err),
     }
 }

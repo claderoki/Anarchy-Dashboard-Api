@@ -12,9 +12,14 @@ mod polls;
 use discord::routes::get_mutual_guilds;
 use oauth::routes::authenticate;
 use oauth::routes::oauth_url;
+use polls::routes::get_available_poll_changes;
+use polls::routes::get_poll_channels;
 use polls::routes::save_poll;
 
-use crate::polls::routes::get_poll_channels;
+use crate::discord::routes::get_all_members;
+use crate::discord::routes::get_all_roles;
+use crate::discord::routes::get_all_text_channels;
+use crate::helpers::caching::base::get_connection_redis;
 
 pub fn panic_on_missing_env() {
     env::var("DISCORD_CLIENT_ID").expect("Expected DISCORD_CLIENT_ID in the environment");
@@ -29,6 +34,7 @@ pub fn panic_on_missing_env() {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    get_connection_redis().expect("Failed to load redis");
     dotenv::dotenv().expect("Failed to load .env file");
     panic_on_missing_env();
 
@@ -44,6 +50,10 @@ async fn main() -> std::io::Result<()> {
                     .allowed_header(http::header::AUTHORIZATION),
             )
             .route("/api/polls/save", web::post().to(save_poll))
+            .route(
+                "/api/polls/get_available_changes",
+                web::get().to(get_available_poll_changes),
+            )
             .route("/api/oauth/url", web::get().to(oauth_url))
             .route(
                 "/api/oauth/authenticate/{code}",
@@ -52,6 +62,18 @@ async fn main() -> std::io::Result<()> {
             .route(
                 "/api/discord/get_mutual_guilds",
                 web::get().to(get_mutual_guilds),
+            )
+            .route(
+                "/api/discord/{guild_id}/get_all_text_channels",
+                web::get().to(get_all_text_channels),
+            )
+            .route(
+                "/api/discord/{guild_id}/get_all_roles",
+                web::get().to(get_all_roles),
+            )
+            .route(
+                "/api/discord/{guild_id}/get_all_members",
+                web::get().to(get_all_members),
             )
             .route(
                 "/api/polls/{guild_id}/allowed_channels",

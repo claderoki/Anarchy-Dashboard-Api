@@ -54,11 +54,19 @@ pub trait Cache<D: CacheKey, T: ToRedisArgs + FromRedisValue> {
     fn set_vec<F: ToRedisArgs>(key: D, value: Vec<F>) -> bool {
         if let Ok(mut connection) = get_connection_redis() {
             let full_key = Self::get_full_key(&key);
-            let result: Result<(), _> = connection.lpush(&full_key, value);
+            println!("{}", full_key);
+            let mut all_ok: bool = true;
+            for item in value.iter() {
+                let result: Result<(), _> = connection.lpush(&full_key, item);
+                if result.is_err() {
+                    all_ok = false;
+                }
+            }
+
             if let Some(expire) = Self::get_expire(&key) {
                 let _: Result<(), _> = connection.expire(&full_key, expire);
             }
-            result.is_ok()
+            all_ok
         } else {
             false
         }

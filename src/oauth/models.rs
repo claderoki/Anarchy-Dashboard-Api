@@ -39,6 +39,4 @@ pub struct AccessTokenResponse {
     pub expires_in: i64,
     pub refresh_token: String,
     pub scope: String,
-    // #[serde(with = "serde_with::rust::StringWithSeparator::<SpaceSeparator>")]
-    // pub scope: Vec<OauthScope>,
 }
