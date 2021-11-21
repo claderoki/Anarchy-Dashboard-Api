@@ -10,6 +10,7 @@ use crate::discord::discord_base::DiscordCall;
 use crate::discord::base_api::Callable;
 use crate::helpers::caching::base::Cache;
 
+use crate::helpers::caching::base::CacheKey;
 use crate::helpers::caching::discord::ChannelsCache;
 use crate::helpers::caching::discord::GuildId;
 
@@ -19,158 +20,133 @@ use crate::polls::routes::Channel;
 use crate::polls::routes::Member;
 use crate::polls::routes::Role;
 
-pub struct ChannelRepository;
-impl ChannelRepository {
-    pub async fn get(guild_id: u64, channel_kind: ChannelKind) -> Result<Vec<Channel>, String> {
-        match Self::get_cached(guild_id, &channel_kind).await {
+use async_trait::async_trait;
+use serde::de::DeserializeOwned;
+
+#[async_trait]
+pub trait Repository<D: DeserializeOwned + Send + Sized, F: Send + Sync> {
+    async fn get(f: &F) -> Result<Vec<D>, String> {
+        match Self::get_cached(f).await {
             Ok(channels) => Ok(channels),
             Err(_) => {
-                let uncached = Self::get_uncached(guild_id, &channel_kind).await?;
-                let mut clone: Vec<Channel> = Vec::new();
-                for channel in uncached.iter() {
-                    clone.push(Channel {
-                        id: channel.id,
-                        name: channel.name.clone(),
-                        kind: channel.kind.clone(),
-                    });
-                }
-                ChannelsCache::set(GuildId(guild_id), clone);
-
+                let uncached = Self::get_uncached(f).await?;
+                let _ = Self::cache(f, &uncached);
                 Ok(uncached)
             }
         }
     }
 
-    pub async fn get_cached(
-        guild_id: u64,
-        channel_kind: &ChannelKind,
-    ) -> Result<Vec<Channel>, String> {
-        let channels = ChannelsCache::get(GuildId(guild_id)).ok_or(String::from("Not found."))?;
+    async fn cache(f: &F, values: &Vec<D>) -> bool;
+    async fn get_cached(f: &F) -> Result<Vec<D>, String>;
+    async fn get_uncached(f: &F) -> Result<Vec<D>, String>;
+}
+
+pub trait RepositoryOptions<D: CacheKey> {
+    fn get_cache_key(&self) -> D;
+}
+
+pub struct ChannelRepositoryOptions(pub u64, pub ChannelKind);
+impl RepositoryOptions<GuildId> for ChannelRepositoryOptions {
+    fn get_cache_key(&self) -> GuildId {
+        GuildId(self.0)
+    }
+}
+
+pub struct ChannelRepository;
+#[async_trait]
+impl Repository<Channel, ChannelRepositoryOptions> for ChannelRepository {
+    async fn cache(options: &ChannelRepositoryOptions, values: &Vec<Channel>) -> bool {
+        ChannelsCache::set(options.get_cache_key(), &values)
+    }
+
+    async fn get_cached(options: &ChannelRepositoryOptions) -> Result<Vec<Channel>, String> {
+        let channels =
+            ChannelsCache::get(options.get_cache_key()).ok_or(String::from("Not found."))?;
         Ok(channels
             .into_iter()
-            .filter(|c| &c.kind == channel_kind)
+            .filter(|c| &c.kind == &options.1)
             .collect::<Vec<Channel>>())
     }
 
-    pub async fn get_uncached(
-        guild_id: u64,
-        channel_kind: &ChannelKind,
-    ) -> Result<Vec<Channel>, String> {
-        let call = DiscordCall {
-            access_token: AccessToken::Bot(env::var("DISCORD_CLIENT_TOKEN").unwrap()),
-        };
+    async fn get_uncached(f: &ChannelRepositoryOptions) -> Result<Vec<Channel>, String> {
+        let call = DiscordCall::new(AccessToken::Bot(env::var("DISCORD_CLIENT_TOKEN").unwrap()));
+        let result = call.call(GetChannels { guild_id: f.0 }).await?;
 
-        let mut channels: Vec<Channel> = Vec::new();
-
-        let result = call.call(GetChannels { guild_id }).await?;
-
-        for channel in result.channels.iter() {
-            if &channel.kind == channel_kind {
-                if let Ok(id) = channel.id.parse::<u64>() {
-                    channels.push(Channel {
-                        id,
-                        name: channel.name.clone(),
-                        kind: channel.kind.clone(),
-                    });
-                }
-            }
-        }
+        let channels: Vec<Channel> = result
+            .channels
+            .into_iter()
+            .filter(|c| c.kind == f.1)
+            .map(|c| Channel {
+                id: c.id.parse::<u64>().unwrap(),
+                name: c.name.clone(),
+                kind: c.kind.clone(),
+            })
+            .collect();
 
         Ok(channels)
     }
 }
 
+pub struct SharedRepositoryOptions(pub u64);
+impl RepositoryOptions<GuildId> for SharedRepositoryOptions {
+    fn get_cache_key(&self) -> GuildId {
+        GuildId(self.0)
+    }
+}
+
 pub struct RoleRepository;
-impl RoleRepository {
-    pub async fn get(guild_id: u64) -> Result<Vec<Role>, String> {
-        match Self::get_cached(guild_id).await {
-            Ok(roles) => Ok(roles),
-            Err(_) => {
-                let uncached = Self::get_uncached(guild_id).await?;
-                let mut clone: Vec<Role> = Vec::new();
-                for channel in uncached.iter() {
-                    clone.push(Role {
-                        id: channel.id,
-                        name: channel.name.clone(),
-                    });
-                }
-                RolesCache::set(GuildId(guild_id), clone);
-
-                Ok(uncached)
-            }
-        }
+#[async_trait]
+impl Repository<Role, SharedRepositoryOptions> for RoleRepository {
+    async fn cache(options: &SharedRepositoryOptions, values: &Vec<Role>) -> bool {
+        RolesCache::set(options.get_cache_key(), &values)
     }
 
-    pub async fn get_cached(guild_id: u64) -> Result<Vec<Role>, String> {
-        RolesCache::get(GuildId(guild_id)).ok_or(String::from("Not found."))
+    async fn get_cached(options: &SharedRepositoryOptions) -> Result<Vec<Role>, String> {
+        RolesCache::get(options.get_cache_key()).ok_or(String::from("Not found."))
     }
 
-    pub async fn get_uncached(guild_id: u64) -> Result<Vec<Role>, String> {
-        let call = DiscordCall {
-            access_token: AccessToken::Bot(env::var("DISCORD_CLIENT_TOKEN").unwrap()),
-        };
+    async fn get_uncached(f: &SharedRepositoryOptions) -> Result<Vec<Role>, String> {
+        let call = DiscordCall::new(AccessToken::Bot(env::var("DISCORD_CLIENT_TOKEN").unwrap()));
+        let result = call.call(GetRoles { guild_id: f.0 }).await?;
 
-        let mut roles: Vec<Role> = Vec::new();
-
-        let result = call.call(GetRoles { guild_id }).await?;
-
-        for channel in result.roles.iter() {
-            if let Ok(id) = channel.id.parse::<u64>() {
-                roles.push(Role {
-                    id,
-                    name: channel.name.clone(),
-                });
-            }
-        }
+        let roles: Vec<Role> = result
+            .roles
+            .into_iter()
+            .map(|c| Role {
+                id: c.id.parse::<u64>().unwrap(),
+                name: c.name.clone(),
+            })
+            .collect();
 
         Ok(roles)
     }
 }
 
 pub struct MemberRepository;
-impl MemberRepository {
-    pub async fn get(guild_id: u64) -> Result<Vec<Member>, String> {
-        match Self::get_cached(guild_id).await {
-            Ok(members) => Ok(members),
-            Err(_) => {
-                let uncached = Self::get_uncached(guild_id).await?;
-                let mut clone: Vec<Member> = Vec::new();
-                for member in uncached.iter() {
-                    clone.push(Member {
-                        id: member.id,
-                        username: member.username.clone(),
-                        discriminator: member.discriminator,
-                    });
-                }
-                MembersCache::set(GuildId(guild_id), clone);
 
-                Ok(uncached)
-            }
-        }
+#[async_trait]
+impl Repository<Member, SharedRepositoryOptions> for MemberRepository {
+    async fn cache(options: &SharedRepositoryOptions, values: &Vec<Member>) -> bool {
+        MembersCache::set(options.get_cache_key(), &values)
     }
 
-    pub async fn get_cached(guild_id: u64) -> Result<Vec<Member>, String> {
-        MembersCache::get(GuildId(guild_id)).ok_or(String::from("Not found."))
+    async fn get_cached(options: &SharedRepositoryOptions) -> Result<Vec<Member>, String> {
+        MembersCache::get(options.get_cache_key()).ok_or(String::from("Not found."))
     }
 
-    pub async fn get_uncached(guild_id: u64) -> Result<Vec<Member>, String> {
-        let call = DiscordCall {
-            access_token: AccessToken::Bot(env::var("DISCORD_CLIENT_TOKEN").unwrap()),
-        };
+    async fn get_uncached(f: &SharedRepositoryOptions) -> Result<Vec<Member>, String> {
+        let call = DiscordCall::new(AccessToken::Bot(env::var("DISCORD_CLIENT_TOKEN").unwrap()));
+        let result = call.call(GetMembers(f.0)).await?;
 
-        let mut members: Vec<Member> = Vec::new();
-
-        let result = call.call(GetMembers { guild_id }).await?;
-
-        for member in result.members.iter() {
-            if let Ok(id) = member.user.id.parse::<u64>() {
-                members.push(Member {
-                    id,
-                    username: member.user.username.clone(),
-                    discriminator: member.user.discriminator.parse::<u16>().unwrap(),
-                });
-            }
-        }
+        let members: Vec<Member> = result
+            .members
+            .into_iter()
+            .map(|c| Member {
+                id: c.user.id.parse::<u64>().unwrap(),
+                username: c.user.username.clone(),
+                discriminator: c.user.discriminator.parse::<u16>().unwrap(),
+            })
+            .collect();
 
         Ok(members)
     }

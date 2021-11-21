@@ -34,12 +34,6 @@ pub trait Callable {
             .error_for_status_ref()
             .map_err(|e| format!("{}", e))?;
 
-        // println!("{}", uri);
-        // if uri.contains("/guilds") {
-        //     println!("abc {:?}", response.text().await);
-        //     return Err("".into());
-        // }
-
         let json = response
             .json::<D>()
             .await
@@ -51,3 +45,9 @@ pub trait Callable {
         None
     }
 }
+
+// println!("{}", uri);
+// if uri.contains("/guilds") {
+//     println!("abc {:?}", response.text().await);
+//     return Err("".into());
+// }

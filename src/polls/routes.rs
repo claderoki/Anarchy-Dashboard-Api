@@ -2,6 +2,8 @@ use crate::discord::calls::ChannelKind;
 use crate::helpers::validator::Validator;
 
 use super::models::Poll;
+use actix_web::get;
+use actix_web::post;
 use actix_web::web;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
@@ -35,6 +37,7 @@ async fn _get_allowed_roles(_guild_id: u64) -> Vec<Role> {
     ]
 }
 
+#[post("/save")]
 pub async fn save_poll(poll: web::Json<Poll>) -> impl Responder {
     println!("{:?}", poll);
     format!("OK")
@@ -67,6 +70,7 @@ async fn get_poll_channels_result(req: &HttpRequest) -> Result<Vec<Channel>, Str
     }
 }
 
+#[get("/{guild_id}/allowed_channels")]
 pub async fn get_poll_channels(req: HttpRequest) -> HttpResponse {
     match get_poll_channels_result(&req).await {
         Ok(allowed_channels) => {
@@ -108,6 +112,7 @@ pub struct ChangeInfo {
     pub value_kind: ChangeValueKind,
 }
 
+#[get("/get_available_changes")]
 pub async fn get_available_poll_changes(_req: HttpRequest) -> HttpResponse {
     HttpResponse::Ok().json(vec![
         ChangeInfo {

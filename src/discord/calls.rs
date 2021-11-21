@@ -128,12 +128,10 @@ pub struct MembersResponse {
     pub members: Vec<MemberResponse>,
 }
 
-pub struct GetMembers {
-    pub guild_id: u64,
-}
+pub struct GetMembers(pub u64);
 
 impl Endpoint<MembersResponse> for GetMembers {
     fn get_endpoint(&self) -> String {
-        format!("/guilds/{}/members", self.guild_id)
+        format!("/guilds/{}/members", self.0)
     }
 }

@@ -9,7 +9,6 @@ use crate::discord::calls::GetMe;
 use crate::discord::discord_base::AccessToken;
 use crate::discord::discord_base::DiscordCall;
 use crate::discord::routes::get_shared_guilds;
-use crate::discord::routes::parse_access_token;
 use crate::helpers::caching::base::Cache;
 use crate::helpers::caching::discord::AccessTokenHash;
 use crate::helpers::caching::discord::GuildsCache;
@@ -18,6 +17,13 @@ use crate::helpers::caching::discord::UserIdCache;
 
 use super::caching::discord::GuildId;
 use super::caching::discord::GuildNameCache;
+
+pub fn parse_access_token(req: &HttpRequest) -> Option<String> {
+    match req.headers().get("Authorization") {
+        Some(value) => Some(value.to_str().ok()?.split(" ").last()?.into()),
+        None => None,
+    }
+}
 
 async fn get_user_id(access_token: &str) -> Result<u64, String> {
     let mut hasher = DefaultHasher::new();
@@ -28,13 +34,11 @@ async fn get_user_id(access_token: &str) -> Result<u64, String> {
     match UserIdCache::get(key) {
         Some(user_id) => Ok(user_id),
         None => {
-            let call = DiscordCall {
-                access_token: AccessToken::Bearer(access_token.into()),
-            };
-            let result = call.call(GetMe {}).await;
+            let call = DiscordCall::new(AccessToken::Bearer(access_token.into()));
+            let result = call.call(GetMe).await;
             if let Ok(me) = result {
                 if let Ok(user_id) = me.id.parse::<u64>() {
-                    UserIdCache::set(AccessTokenHash::new(&hash), user_id);
+                    UserIdCache::set(AccessTokenHash::new(&hash), &user_id);
                     return Ok(user_id);
                 }
             }
@@ -47,25 +51,24 @@ async fn get_user_id(access_token: &str) -> Result<u64, String> {
 pub async fn get_allowed_guilds(access_token: &str) -> Result<Vec<u64>, String> {
     let user_id = get_user_id(access_token).await?;
 
-    let key = UserId { 0: user_id };
+    let key = UserId(user_id);
     match GuildsCache::get(key) {
         Some(guild_ids) => Ok(guild_ids),
         None => {
+            println!("Guilds not found in cache, calling uncached.");
+
             let guilds = get_shared_guilds(access_token).await?;
 
             GuildsCache::set(
-                UserId { 0: user_id },
-                guilds
+                UserId(user_id),
+                &guilds
                     .iter()
                     .map(|i| i.id.parse::<u64>().unwrap())
                     .collect::<Vec<u64>>(),
             );
 
             for guild in guilds.iter() {
-                GuildNameCache::set(
-                    GuildId(guild.id.parse::<u64>().unwrap()),
-                    guild.name.clone(),
-                );
+                GuildNameCache::set(GuildId(guild.id.parse::<u64>().unwrap()), &guild.name);
             }
 
             Ok(guilds
@@ -85,7 +88,7 @@ pub struct ValidationInfo {
 pub struct Validator;
 impl Validator {
     pub fn new() -> Self {
-        Self {}
+        Self
     }
 
     pub async fn validate(&self, req: &HttpRequest) -> ValidationResult {

@@ -3,6 +3,7 @@ use std::env;
 use std::hash::Hash;
 use std::hash::Hasher;
 
+use actix_web::get;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 use actix_web::Responder;
@@ -42,18 +43,17 @@ async fn store_oauth(response: &AccessTokenResponse) {
         response.expires_in.try_into().unwrap(),
     );
 
-    let call = DiscordCall {
-        access_token: AccessToken::Bearer(response.access_token.clone()),
-    };
-    let result = call.call(GetMe {}).await;
+    let call = DiscordCall::new(AccessToken::Bearer(response.access_token.clone()));
+    let result = call.call(GetMe).await;
 
     if let Ok(me) = result {
         if let Ok(user_id) = me.id.parse::<u64>() {
-            UserIdCache::set(key, user_id);
+            UserIdCache::set(key, &user_id);
         }
     }
 }
 
+#[get("/authenticate")]
 pub async fn authenticate(req: HttpRequest) -> HttpResponse {
     match req.match_info().get("code") {
         Some(code) => match token_call(GrantType::AuthorizationCode(code.into())).await {
@@ -67,6 +67,7 @@ pub async fn authenticate(req: HttpRequest) -> HttpResponse {
     }
 }
 
+#[get("/url")]
 pub async fn oauth_url() -> impl Responder {
     OauthController::create_url(OauthUrlSettings {
         scopes: vec![OauthScope::Identify, OauthScope::Guilds],

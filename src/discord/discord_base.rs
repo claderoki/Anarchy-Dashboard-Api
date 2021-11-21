@@ -4,13 +4,13 @@ use reqwest;
 use reqwest::header::HeaderMap;
 use reqwest::header::AUTHORIZATION;
 
-pub struct DiscordCall {
-    pub access_token: AccessToken,
-}
-
 pub enum AccessToken {
     Bot(String),
     Bearer(String),
+}
+
+pub struct DiscordCall {
+    pub access_token: AccessToken,
 }
 
 impl DiscordCall {

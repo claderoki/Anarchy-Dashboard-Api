@@ -62,7 +62,7 @@ impl Cache<UserId, Vec<u64>> for GuildsCache {
         Self::get_vec::<u64>(key)
     }
 
-    fn set(key: UserId, value: Vec<u64>) -> bool {
+    fn set(key: UserId, value: &Vec<u64>) -> bool {
         Self::set_vec::<u64>(key, value)
     }
 
@@ -145,7 +145,7 @@ impl Cache<GuildId, Vec<Channel>> for ChannelsCache {
         Self::get_vec::<Channel>(key)
     }
 
-    fn set(key: GuildId, value: Vec<Channel>) -> bool {
+    fn set(key: GuildId, value: &Vec<Channel>) -> bool {
         Self::set_vec::<Channel>(key, value)
     }
 
@@ -164,7 +164,7 @@ impl Cache<GuildId, Vec<Role>> for RolesCache {
         Self::get_vec::<Role>(key)
     }
 
-    fn set(key: GuildId, value: Vec<Role>) -> bool {
+    fn set(key: GuildId, value: &Vec<Role>) -> bool {
         Self::set_vec::<Role>(key, value)
     }
 
@@ -183,7 +183,7 @@ impl Cache<GuildId, Vec<Member>> for MembersCache {
         Self::get_vec::<Member>(key)
     }
 
-    fn set(key: GuildId, value: Vec<Member>) -> bool {
+    fn set(key: GuildId, value: &Vec<Member>) -> bool {
         Self::set_vec::<Member>(key, value)
     }
 
