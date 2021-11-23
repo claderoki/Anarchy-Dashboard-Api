@@ -1,4 +1,5 @@
 use super::base_api::Endpoint;
+use serde_repr::*;
 
 #[derive(serde::Deserialize, Debug)]
 pub struct MeResponse {
@@ -30,8 +31,8 @@ impl Endpoint<GuildsResponse> for GetGuilds {
         "/users/@me/guilds".into()
     }
 }
-use serde_repr::*;
-#[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug)]
+
+#[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug, Clone)]
 #[repr(u8)]
 pub enum ChannelKind {
     GuildText = 0,
@@ -45,23 +46,6 @@ pub enum ChannelKind {
     GuildPublicThread = 11,
     GuildPrivateThread = 12,
     GuildStageVoice = 13,
-}
-impl ChannelKind {
-    pub fn clone(&self) -> Self {
-        match self {
-            ChannelKind::GuildText => ChannelKind::GuildText,
-            ChannelKind::Dm => ChannelKind::Dm,
-            ChannelKind::GuildVoice => ChannelKind::GuildVoice,
-            ChannelKind::GroupDm => ChannelKind::GroupDm,
-            ChannelKind::GuildCategory => ChannelKind::GuildCategory,
-            ChannelKind::GuildNews => ChannelKind::GuildNews,
-            ChannelKind::GuildStore => ChannelKind::GuildStore,
-            ChannelKind::GuildNewsThread => ChannelKind::GuildNewsThread,
-            ChannelKind::GuildPublicThread => ChannelKind::GuildPublicThread,
-            ChannelKind::GuildPrivateThread => ChannelKind::GuildPrivateThread,
-            ChannelKind::GuildStageVoice => ChannelKind::GuildStageVoice,
-        }
-    }
 }
 
 #[derive(serde::Deserialize, Debug)]

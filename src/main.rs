@@ -13,7 +13,7 @@ use discord::routes::get_mutual_guilds;
 use oauth::routes::authenticate;
 use oauth::routes::oauth_url;
 use polls::routes::get_available_poll_changes;
-use polls::routes::get_poll_channels;
+use polls::routes::get_poll_settings;
 use polls::routes::save_poll;
 
 use crate::discord::routes::get_all_members;
@@ -66,8 +66,8 @@ async fn main() -> std::io::Result<()> {
                     .service(
                         web::scope("/polls")
                             .service(save_poll)
-                            .service(get_poll_channels)
-                            .service(get_available_poll_changes),
+                            .service(get_available_poll_changes)
+                            .service(get_poll_settings),
                     ),
             )
     })

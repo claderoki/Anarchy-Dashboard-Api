@@ -4,6 +4,7 @@ use reqwest;
 use reqwest::header::HeaderMap;
 use reqwest::header::AUTHORIZATION;
 
+#[derive(Clone)]
 pub enum AccessToken {
     Bot(String),
     Bearer(String),

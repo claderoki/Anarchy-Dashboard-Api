@@ -1,4 +1,5 @@
 use crate::discord::calls::ChannelKind;
+use crate::discord::models::Channel;
 use crate::helpers::validator::Validator;
 
 use super::models::Poll;
@@ -9,34 +10,6 @@ use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 use actix_web::Responder;
 
-async fn get_allowed_channels(_guild_id: u64) -> Vec<Channel> {
-    vec![
-        Channel {
-            id: 906898585302499369,
-            name: "polls".into(),
-            kind: ChannelKind::GuildText,
-        },
-        Channel {
-            id: 906898600162906162,
-            name: "data".into(),
-            kind: ChannelKind::GuildText,
-        },
-    ]
-}
-
-async fn _get_allowed_roles(_guild_id: u64) -> Vec<Role> {
-    vec![
-        Role {
-            id: 907341985365512323,
-            name: "experimentation".into(),
-        },
-        Role {
-            id: 907342012364226600,
-            name: "Earthling".into(),
-        },
-    ]
-}
-
 #[post("/save")]
 pub async fn save_poll(poll: web::Json<Poll>) -> impl Responder {
     println!("{:?}", poll);
@@ -44,42 +17,33 @@ pub async fn save_poll(poll: web::Json<Poll>) -> impl Responder {
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
-pub struct Channel {
-    pub id: u64,
-    pub name: String,
-    pub kind: ChannelKind,
+pub struct PollSettings {
+    allowed_channels: Vec<String>,
+    allowed_changes: Vec<String>,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
-pub struct Member {
-    pub id: u64,
-    pub username: String,
-    pub discriminator: u16,
+#[post("/save_settings")]
+pub async fn save_poll_settings(poll: web::Json<PollSettings>) -> impl Responder {
+    println!("{:?}", poll);
+    format!("OK")
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
-pub struct Role {
-    pub id: u64,
-    pub name: String,
-}
-
-async fn get_poll_channels_result(req: &HttpRequest) -> Result<Vec<Channel>, String> {
+#[get("/{guild_id}/get_settings")]
+pub async fn get_poll_settings(req: HttpRequest) -> HttpResponse {
     match Validator::new().validate(&req).await {
-        Ok(info) => Ok(get_allowed_channels(info.guild_id).await),
-        Err(err) => Err(format!("Validate failed: {}", err)),
-    }
-}
-
-#[get("/{guild_id}/allowed_channels")]
-pub async fn get_poll_channels(req: HttpRequest) -> HttpResponse {
-    match get_poll_channels_result(&req).await {
-        Ok(allowed_channels) => {
-            return HttpResponse::Ok().json(allowed_channels);
-        }
-        Err(_err) => {
-            println!("{}", _err);
-            return HttpResponse::Unauthorized().finish();
-        }
+        Ok(_info) => HttpResponse::Ok().json(PollSettings {
+            allowed_channels: vec![
+                "906898585302499369".into(),
+                "912721488187117578".into(),
+                "906898600162906162".into(),
+            ],
+            allowed_changes: vec![
+                "create_channel".into(),
+                "delete_channel".into(),
+                "assign_role".into(),
+            ],
+        }),
+        Err(_) => HttpResponse::Unauthorized().finish(),
     }
 }
 

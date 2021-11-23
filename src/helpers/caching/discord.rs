@@ -3,9 +3,11 @@ use redis::FromRedisValue;
 use redis::RedisError;
 use redis::ToRedisArgs;
 
-use crate::polls::routes::Channel;
-use crate::polls::routes::Member;
-use crate::polls::routes::Role;
+use crate::discord::models::Channel;
+use crate::discord::models::Guild;
+use crate::discord::models::Member;
+use crate::discord::models::Role;
+use crate::redis_struct;
 
 use super::base::Cache;
 use super::base::CacheKey;
@@ -15,6 +17,7 @@ pub struct AccessTokenHash {
     pub hash: String,
     pub expires_in: Option<usize>,
 }
+
 impl AccessTokenHash {
     pub fn new(hash: &str) -> Self {
         Self {
@@ -57,13 +60,13 @@ impl CacheKey for UserId {
 }
 
 pub struct GuildsCache;
-impl Cache<UserId, Vec<u64>> for GuildsCache {
-    fn get(key: UserId) -> Option<Vec<u64>> {
-        Self::get_vec::<u64>(key)
+impl Cache<UserId, Vec<Guild>> for GuildsCache {
+    fn get(key: UserId) -> Option<Vec<Guild>> {
+        Self::get_vec::<Guild>(key)
     }
 
-    fn set(key: UserId, value: &Vec<u64>) -> bool {
-        Self::set_vec::<u64>(key, value)
+    fn set(key: UserId, value: &Vec<Guild>) -> bool {
+        Self::set_vec::<Guild>(key, value)
     }
 
     fn get_expire(_key: &UserId) -> Option<usize> {
@@ -85,58 +88,11 @@ impl CacheKey for GuildId {
     }
 }
 
-#[macro_export]
-macro_rules! redis_struct {
-    ($($name:ident;)*) => {
-        $(
-            impl ToRedisArgs for $name {
-                fn write_redis_args<W>(&self, out: &mut W)
-                where
-                    W: ?Sized + redis::RedisWrite,
-                {
-                    if let Ok(raw) = serde_json::to_string(self) {
-                        out.write_arg(raw.as_bytes());
-                    }
-                }
-            }
-
-            impl FromRedisValue for $name {
-                fn from_redis_value(v: &redis::Value) -> redis::RedisResult<Self> {
-                    match v {
-                        redis::Value::Nil => todo!("nil"),
-                        redis::Value::Int(_) => todo!("int"),
-                        redis::Value::Data(raw) => match std::str::from_utf8(raw) {
-                            Ok(data) => {
-                                let result: Result<Self, _> = serde_json::from_str(data);
-                                match result {
-                                    Ok(data) => Ok(data),
-                                    Err(err) => Err(RedisError::from((
-                                        ErrorKind::TypeError,
-                                        "Response was of incompatible type",
-                                        format!("(response was {:?})", err),
-                                    ))),
-                                }
-                            }
-                            Err(err) => Err(RedisError::from((
-                                ErrorKind::TypeError,
-                                "Response was of incompatible type",
-                                format!("(response was {:?})", err),
-                            ))),
-                        },
-                        redis::Value::Bulk(_) => todo!("bulk"),
-                        redis::Value::Status(_) => todo!("status"),
-                        redis::Value::Okay => todo!("okay"),
-                    }
-                }
-            }
-        )*
-    }
-}
-
 redis_struct! {
     Channel;
     Role;
     Member;
+    Guild;
 }
 
 pub struct ChannelsCache;
@@ -193,12 +149,5 @@ impl Cache<GuildId, Vec<Member>> for MembersCache {
 
     fn get_additional_namespace() -> Option<String> {
         Some("members".into())
-    }
-}
-
-pub struct GuildNameCache;
-impl Cache<GuildId, String> for GuildNameCache {
-    fn get_expire(_key: &GuildId) -> Option<usize> {
-        Some(1800)
     }
 }

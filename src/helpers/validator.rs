@@ -8,21 +8,18 @@ use crate::discord::base_api::Callable;
 use crate::discord::calls::GetMe;
 use crate::discord::discord_base::AccessToken;
 use crate::discord::discord_base::DiscordCall;
-use crate::discord::routes::get_shared_guilds;
+use crate::discord::models::Guild;
 use crate::helpers::caching::base::Cache;
 use crate::helpers::caching::discord::AccessTokenHash;
-use crate::helpers::caching::discord::GuildsCache;
-use crate::helpers::caching::discord::UserId;
 use crate::helpers::caching::discord::UserIdCache;
 
-use super::caching::discord::GuildId;
-use super::caching::discord::GuildNameCache;
+use super::repositories::discord::GuildRepositoryOptions;
+use super::repositories::discord::MutualGuildRepository;
+use super::repositories::discord::Repository;
 
 pub fn parse_access_token(req: &HttpRequest) -> Option<String> {
-    match req.headers().get("Authorization") {
-        Some(value) => Some(value.to_str().ok()?.split(" ").last()?.into()),
-        None => None,
-    }
+    let value = req.headers().get("Authorization")?;
+    Some(value.to_str().ok()?.split(" ").last()?.into())
 }
 
 async fn get_user_id(access_token: &str) -> Result<u64, String> {
@@ -48,35 +45,13 @@ async fn get_user_id(access_token: &str) -> Result<u64, String> {
     }
 }
 
-pub async fn get_allowed_guilds(access_token: &str) -> Result<Vec<u64>, String> {
+pub async fn get_allowed_guilds(access_token: &str) -> Result<Vec<Guild>, String> {
     let user_id = get_user_id(access_token).await?;
 
-    let key = UserId(user_id);
-    match GuildsCache::get(key) {
-        Some(guild_ids) => Ok(guild_ids),
-        None => {
-            println!("Guilds not found in cache, calling uncached.");
+    let options = GuildRepositoryOptions(user_id, AccessToken::Bearer(access_token.into()));
+    let guilds = MutualGuildRepository::get(&options).await?;
 
-            let guilds = get_shared_guilds(access_token).await?;
-
-            GuildsCache::set(
-                UserId(user_id),
-                &guilds
-                    .iter()
-                    .map(|i| i.id.parse::<u64>().unwrap())
-                    .collect::<Vec<u64>>(),
-            );
-
-            for guild in guilds.iter() {
-                GuildNameCache::set(GuildId(guild.id.parse::<u64>().unwrap()), &guild.name);
-            }
-
-            Ok(guilds
-                .iter()
-                .map(|i| i.id.parse::<u64>().unwrap())
-                .collect::<Vec<u64>>())
-        }
-    }
+    Ok(guilds)
 }
 
 type ValidationResult = Result<ValidationInfo, String>;
@@ -96,15 +71,13 @@ impl Validator {
         let guild_id = req
             .match_info()
             .get("guild_id")
-            .ok_or("No guild id passed.")?
-            .parse::<u64>()
-            .map_err(|_| "Guild id invalid.")?;
+            .ok_or("No guild id passed.")?;
 
         match get_allowed_guilds(&access_token).await {
             Ok(guilds) => {
-                if guilds.contains(&guild_id) {
+                if guilds.iter().any(|g| g.id == guild_id) {
                     return Ok(ValidationInfo {
-                        guild_id,
+                        guild_id: guild_id.parse::<u64>().unwrap(),
                         access_token,
                     });
                 }
