@@ -1,5 +1,3 @@
-use crate::discord::calls::ChannelKind;
-use crate::discord::models::Channel;
 use crate::helpers::validator::Validator;
 
 use super::models::Poll;

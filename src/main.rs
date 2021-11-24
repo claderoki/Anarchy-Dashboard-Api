@@ -11,6 +11,7 @@ mod oauth;
 mod polls;
 use discord::routes::get_mutual_guilds;
 use oauth::routes::authenticate;
+use oauth::routes::reauthenticate;
 use oauth::routes::oauth_url;
 use polls::routes::get_available_poll_changes;
 use polls::routes::get_poll_settings;
@@ -61,7 +62,8 @@ async fn main() -> std::io::Result<()> {
                     .service(
                         web::scope("/oauth")
                             .service(oauth_url)
-                            .service(authenticate),
+                            .service(authenticate)
+                            .service(reauthenticate),
                     )
                     .service(
                         web::scope("/polls")

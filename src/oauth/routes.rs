@@ -53,10 +53,24 @@ async fn store_oauth(response: &AccessTokenResponse) {
     }
 }
 
-#[get("/authenticate")]
+#[get("/authenticate/{code}")]
 pub async fn authenticate(req: HttpRequest) -> HttpResponse {
     match req.match_info().get("code") {
         Some(code) => match token_call(GrantType::AuthorizationCode(code.into())).await {
+            Ok(response) => {
+                store_oauth(&response).await;
+                HttpResponse::Ok().json(response)
+            }
+            Err(err) => HttpResponse::BadRequest().body(err),
+        },
+        None => HttpResponse::BadRequest().finish(),
+    }
+}
+
+#[get("/reauthenticate/{refresh_token}")]
+pub async fn reauthenticate(req: HttpRequest) -> HttpResponse {
+    match req.match_info().get("refresh_token") {
+        Some(code) => match token_call(GrantType::RefreshToken(code.into())).await {
             Ok(response) => {
                 store_oauth(&response).await;
                 HttpResponse::Ok().json(response)
